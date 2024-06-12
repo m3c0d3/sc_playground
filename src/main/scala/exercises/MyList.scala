@@ -19,6 +19,12 @@ abstract class MyList[+A] {
   def printElements: String
 
   override def toString: String = "[" + printElements + "]"
+
+  def map[B](transformer: MyTransformer[A, B]): MyList[B]
+
+  //  def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B]
+
+  def filter(predicate: MyPredicate[A]): MyList[A]
 }
 
 object Empty extends MyList[Nothing] {
@@ -32,6 +38,12 @@ object Empty extends MyList[Nothing] {
   override def add[B >: Nothing](value: B): MyList[B] = new Cons(value, Empty)
 
   def printElements: String = ""
+
+  override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+
+  //  override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+
+  override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
 }
 
 class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
@@ -48,12 +60,30 @@ class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
     if (t.isEmpty) "" + h
     else "" + h + " " + t.printElements
 
+  override def map[B](transformer: MyTransformer[A, B]): MyList[B] =
+    new Cons[B](transformer.convert(head), tail.map(transformer))
+
+  //  override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] =
+  //    new Cons(transformer.convert(head), tail.flatMap(transformer))
+
+  override def filter(predicate: MyPredicate[A]): MyList[A] =
+    if (predicate.test(head)) new Cons(head, tail.filter(predicate))
+    else tail.filter(predicate)
+
+
 }
 
 object ListTest extends App {
-  val listOfInt:MyList[Int] = new Cons(1,new Cons(2,Empty))
-  val listOfString:MyList[String] =  new Cons("A",new Cons("B",Empty))
+  val listOfInt: MyList[Int] = new Cons(1, new Cons(2, Empty))
+  val listOfString: MyList[String] = new Cons("A", new Cons("B", Empty))
 
   println(listOfInt)
   println(listOfString)
+
+  private val myTransformer: MyTransformer[Int, String] = new MyTransformer[Int, String]:
+    override def convert(a: Int): String = "a" + a
+
+  println(listOfInt.map(myTransformer))
+
+  println(listOfInt.filter(a => a % 2 == 1))
 }
