@@ -28,7 +28,7 @@ abstract class MyList[+A] {
 
   def filter(predicate: MyPredicate[A]): MyList[A]
 
-  // B >: A, read N supertype of A
+  // B >: A, read B supertype of A
   @targetName("concatenation")
   def ++[B >: A](list: MyList[B]): MyList[B]
 }
