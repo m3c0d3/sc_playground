@@ -33,7 +33,9 @@ abstract class MyList[+A] {
   def ++[B >: A](list: MyList[B]): MyList[B]
 }
 
-object Empty extends MyList[Nothing] {
+// only by adding the case keyword, we have implemented equals/hashcode, tostring, and made this class a case class
+// which means that all those 7 things supported for case classes will be supported here too
+case object Empty extends MyList[Nothing] {
 
   override def head: Nothing = throw new NoSuchElementException
 
@@ -55,7 +57,9 @@ object Empty extends MyList[Nothing] {
   override def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
 }
 
-class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+// only by adding the case keyword, we have implemented equals/hashcode, tostring, copy, serializable and made this class a case class
+// which means that all those 7 things supported for case classes will be supported here too
+case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
 
   override def head: A = h
 
@@ -102,6 +106,7 @@ class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
 
 object ListTest extends App {
   val listOfInt: MyList[Int] = new Cons(1, new Cons(2, Empty))
+  val listOfIntCloned: MyList[Int] = new Cons(1, new Cons(2, Empty))
   val listOfString: MyList[String] = new Cons("A", new Cons("B", Empty))
 
   println(listOfInt)
@@ -123,4 +128,7 @@ object ListTest extends App {
     override def transform(elem: Int): MyList[Int] = new Cons(elem, new Cons(elem + 1, Empty))
 
   println(listOfInt.flatMap(my2ndTransformer).toString)
+
+  // no need to implement equals because it is already implemented out of the box by adding the case keyword for the class
+  println( listOfInt == listOfIntCloned)
 }
