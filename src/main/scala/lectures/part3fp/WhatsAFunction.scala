@@ -34,9 +34,8 @@ object WhatsAFunction extends App {
       - what's the type of this function
 
   */
-  def hoFunction(a: Int): Function1[Int, Int] =
-    new Function[Int, Int]:
-      override def apply(v1: Int): Int = a + v1
+  def hoFunction(a: Int): Int => Int =
+    (v1: Int) => a + v1
 
   val fiveAdder = hoFunction(5);
 
