@@ -43,6 +43,10 @@ object WhatsAFunction extends App {
   val result = fiveAdder(2)
 
   println(if (result == 7) "the fiveAdder function added 5 and result is correct" else "problem")
+
+
+  // curried functions
+  println(hoFunction(5)(4) == 9)
 }
 
 // this is the most thing what you can do with OOP

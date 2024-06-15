@@ -22,11 +22,12 @@ abstract class MyList[+A] {
 
   override def toString: String = "[" + printElements + "]"
 
-  def map[B](transformer: Function1[A, B]): MyList[B]
+  // high order functions - receive functions as parameters or return functions
+  def map[B](transformer: A => B): MyList[B]
 
-  def flatMap[B](transformer: Function1[A, MyList[B]]): MyList[B]
+  def flatMap[B](transformer: A => MyList[B]): MyList[B]
 
-  def filter(predicate: Function1[A, Boolean]): MyList[A]
+  def filter(predicate: A => Boolean): MyList[A]
 
   // B >: A, read B supertype of A
   @targetName("concatenation")
@@ -47,11 +48,11 @@ case object Empty extends MyList[Nothing] {
 
   def printElements: String = ""
 
-  override def map[B](transformer: Function1[Nothing, B]): MyList[B] = Empty
+  override def map[B](transformer: (Nothing) => B): MyList[B] = Empty
 
-  override def flatMap[B](transformer: Function1[Nothing, MyList[B]]): MyList[B] = Empty
+  override def flatMap[B](transformer: (Nothing) => MyList[B]): MyList[B] = Empty
 
-  override def filter(predicate: Function1[Nothing, Boolean]): MyList[Nothing] = Empty
+  override def filter(predicate: (Nothing) => Boolean): MyList[Nothing] = Empty
 
   @targetName("concatenation")
   override def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
@@ -73,7 +74,7 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
     if (t.isEmpty) "" + h
     else "" + h + " " + t.printElements
 
-  override def map[B](transformer: Function1[A, B]): MyList[B] =
+  override def map[B](transformer: (A) => B): MyList[B] =
     new Cons[B](transformer(head), tail.map(transformer))
 
   /*
@@ -85,10 +86,10 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
 
 
    */
-  override def flatMap[B](transformer: Function1[A, MyList[B]]): MyList[B] =
+  override def flatMap[B](transformer: A => MyList[B]): MyList[B] =
     transformer(h) ++ t.flatMap(transformer)
 
-  override def filter(predicate: Function1[A, Boolean]): MyList[A] =
+  override def filter(predicate: A => Boolean): MyList[A] =
     if (predicate(head)) new Cons(head, tail.filter(predicate))
     else tail.filter(predicate)
 
@@ -112,10 +113,10 @@ object ListTest extends App {
   println(listOfInt)
   println(listOfString)
 
-  private val myTransformer: Function1[Int, String] = new Function1[Int, String]:
+  private val myTransformer: Int => String = new Function1[Int, String]:
     override def apply(elem: Int): String = "a" + elem
 
-  private val myPredicate: Function1[Int, Boolean] = new Function1[Int, Boolean]:
+  private val myPredicate: Int => Boolean = new Function1[Int, Boolean]:
     override def apply(elem: Int): Boolean = elem % 2 == 1
 
   println(listOfInt.map(myTransformer))
@@ -124,7 +125,7 @@ object ListTest extends App {
 
   println(listOfInt.filter(myPredicate))
 
-  val my2ndTransformer: Function1[Int, MyList[Int]] = new Function1[Int, MyList[Int]]:
+  val my2ndTransformer: Int => MyList[Int] = new Function1[Int, MyList[Int]]:
     override def apply(elem: Int): MyList[Int] = new Cons(elem, new Cons(elem + 1, Empty))
 
   println(listOfInt.flatMap(my2ndTransformer).toString)
