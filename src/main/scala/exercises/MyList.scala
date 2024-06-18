@@ -22,15 +22,26 @@ abstract class MyList[+A] {
 
   override def toString: String = "[" + printElements + "]"
 
-  def map[B](transformer: MyTransformer[A, B]): MyList[B]
+  // high order functions - receive functions as parameters or return functions
+  def map[B](transformer: A => B): MyList[B]
 
-  def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B]
+  def flatMap[B](transformer: A => MyList[B]): MyList[B]
 
-  def filter(predicate: MyPredicate[A]): MyList[A]
+  def filter(predicate: A => Boolean): MyList[A]
 
   // B >: A, read B supertype of A
   @targetName("concatenation")
   def ++[B >: A](list: MyList[B]): MyList[B]
+
+  // hofs
+  def foreach(a: A => Unit): Unit
+
+  def sort(compare: (x: A, y: A) => Int): MyList[A]
+
+  def zipWith[B, C](list: MyList[B], zip: (A, B) => C): MyList[C]
+
+  // similar to reduce from js/java
+  def fold[B](start: B)(operator: (B, A) => B): B
 }
 
 // only by adding the case keyword, we have implemented equals/hashcode, tostring, and made this class a case class
@@ -47,14 +58,24 @@ case object Empty extends MyList[Nothing] {
 
   def printElements: String = ""
 
-  override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+  override def map[B](transformer: (Nothing) => B): MyList[B] = Empty
 
-  override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+  override def flatMap[B](transformer: (Nothing) => MyList[B]): MyList[B] = Empty
 
-  override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
+  override def filter(predicate: (Nothing) => Boolean): MyList[Nothing] = Empty
 
   @targetName("concatenation")
   override def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
+
+  override def foreach(a: Nothing => Unit): Unit = {}
+
+  override def sort(compare: (x: Nothing, y: Nothing) => Int): MyList[Nothing] = Empty
+
+  override def zipWith[B, C](list: MyList[B], zip: (Nothing, B) => C): MyList[C] =
+    if (!list.isEmpty) throw RuntimeException("lists do not have the same length")
+    else Empty
+
+  override def fold[B](start: B)(operator: (B, Nothing) => B): B = start
 }
 
 // only by adding the case keyword, we have implemented equals/hashcode, tostring, copy, serializable and made this class a case class
@@ -73,8 +94,8 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
     if (t.isEmpty) "" + h
     else "" + h + " " + t.printElements
 
-  override def map[B](transformer: MyTransformer[A, B]): MyList[B] =
-    new Cons[B](transformer.transform(head), tail.map(transformer))
+  override def map[B](transformer: (A) => B): MyList[B] =
+    new Cons[B](transformer(head), tail.map(transformer))
 
   /*
   [1,2].flatMap(n=>[n,n+1])
@@ -82,14 +103,12 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
   = [1,2] ++ [2,3] ++ Empty.flatMap(n=>[n,n+1])
   = [1,2] ++ [2,3] ++ Empty
   = [1,2,3,4]
-
-
    */
-  override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] =
-    transformer.transform(h) ++ t.flatMap(transformer)
+  override def flatMap[B](transformer: A => MyList[B]): MyList[B] =
+    transformer(h) ++ t.flatMap(transformer)
 
-  override def filter(predicate: MyPredicate[A]): MyList[A] =
-    if (predicate.test(head)) new Cons(head, tail.filter(predicate))
+  override def filter(predicate: A => Boolean): MyList[A] =
+    if (predicate(head)) new Cons(head, tail.filter(predicate))
     else tail.filter(predicate)
 
   /*
@@ -102,6 +121,33 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
    */
   @targetName("concatenation")
   override def ++[B >: A](list: MyList[B]): MyList[B] = new Cons(h, t ++ list)
+
+  override def foreach(a: A => Unit): Unit =
+    a(head)
+    tail.foreach(a)
+
+  override def sort(compare: (A, A) => Int): MyList[A] = {
+    // this is not tail recursive
+    def insert(x: A, sortedList: MyList[A]): MyList[A] = {
+      if (sortedList.isEmpty) Cons(x, Empty)
+      else if (compare(x, sortedList.head) <= 0) Cons(x, sortedList)
+      else Cons(sortedList.head, insert(x, sortedList.tail))
+    }
+
+    // insertion sort
+    val sortedTail = t.sort(compare)
+    insert(h, sortedTail)
+  }
+
+  override def zipWith[B, C](list: MyList[B], zip: (A, B) => C): MyList[C] =
+    if (list.isEmpty) throw RuntimeException("Lists do not have the same length")
+    else new Cons(zip(h, list.head), tail.zipWith(list.tail, zip))
+
+  override def fold[B](start: B)(operator: (B, A) => B): B =
+    val newStart = operator(start, head)
+    t.fold(newStart)(operator)
+  // can be also written more concise as
+  // t.fold(operator(start, head))(operator)
 }
 
 object ListTest extends App {
@@ -112,11 +158,11 @@ object ListTest extends App {
   println(listOfInt)
   println(listOfString)
 
-  private val myTransformer: MyTransformer[Int, String] = new MyTransformer[Int, String]:
-    override def transform(elem: Int): String = "a" + elem
+  private val myTransformer: Int => String = new Function1[Int, String]:
+    override def apply(elem: Int): String = "a" + elem
 
-  private val myPredicate: MyPredicate[Int] = new MyPredicate[Int]:
-    override def test(elem: Int): Boolean = elem % 2 == 1
+  private val myPredicate: Int => Boolean = new Function1[Int, Boolean]:
+    override def apply(elem: Int): Boolean = elem % 2 == 1
 
   println(listOfInt.map(myTransformer))
 
@@ -124,11 +170,22 @@ object ListTest extends App {
 
   println(listOfInt.filter(myPredicate))
 
-  val my2ndTransformer: MyTransformer[Int, MyList[Int]] = new MyTransformer[Int, MyList[Int]]:
-    override def transform(elem: Int): MyList[Int] = new Cons(elem, new Cons(elem + 1, Empty))
+  val my2ndTransformer: Int => MyList[Int] = new Function1[Int, MyList[Int]]:
+    override def apply(elem: Int): MyList[Int] = new Cons(elem, new Cons(elem + 1, Empty))
 
   println(listOfInt.flatMap(my2ndTransformer).toString)
 
   // no need to implement equals because it is already implemented out of the box by adding the case keyword for the class
-  println( listOfInt == listOfIntCloned)
+  println(listOfInt == listOfIntCloned)
+  println("foreach test")
+  listOfInt.foreach(println)
+
+  println(listOfInt.sort((x, y) => y - x))
+
+  // zip is very useful by spark developers
+  println(listOfInt.zipWith(listOfString, _ + "-" + _))
+
+  // fold
+  println("fold: " + listOfInt.fold(0)((x, y) => x + y))
+  println("fold: " + listOfInt.fold(1)(_ * _))
 }
